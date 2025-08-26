@@ -1,0 +1,53 @@
+name: Build Oni-Chan-Rai Clang
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential ninja-build python3 git cmake \
+             lld binutils wget curl zlib1g-dev libtinfo-dev libedit-dev \
+             libxml2-dev unzip
+
+      - name: Clone LLVM source
+        run: |
+          git clone --depth=1 --branch release/20.x https://github.com/llvm/llvm-project.git llvm-project
+
+      - name: Build Oni-Chan-Rai Clang
+        run: |
+          mkdir -p oni-llvm && cd oni-llvm
+          python3 ../build-llvm.py \
+            --install-folder $PWD/install \
+            --quiet-cmake \
+            --bolt \
+            --lto full \
+            --pgo llvm \
+            --build-type Release \
+            --ref release/20.x \
+            --shallow-clone \
+            --targets AArch64 ARM X86 \
+            --vendor-string "Oni-Chan-Rai Clang" \
+            --projects clang lld compiler-rt libcxx libcxxabi
+
+      - name: Pack Clang
+        run: |
+          cd oni-llvm
+          tar -czf Oni-Chan-Rai-Clang.tar.gz install
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: Oni-Chan-Rai-v20
+          name: Oni-Chan-Rai Clang v20
+          files: oni-llvm/Oni-Chan-Rai-Clang.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
